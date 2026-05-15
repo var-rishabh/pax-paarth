@@ -1,251 +1,133 @@
-(function($) {
+(function () {
+  'use strict';
 
-	"use strict";
+  /* ── Preloader ─────────────────────────────────────────── */
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var pl = document.getElementById('preloader');
+      if (pl) pl.classList.add('gone');
+    }, 1500);
+  });
 
-	var cfg = {		
-		defAnimation   : "fadeInUp",
-		scrollDuration : 800,
-		mailChimpURL   : 'http://facebook.us8.list-manage.com/subscribe/post?u=cdb7b577e41181934ed6a6a44&amp;id=e65110b38d'
-	},	
+  /* ── Navbar scroll state ───────────────────────────────── */
+  var nav = document.getElementById('nav');
+  function onScroll() {
+    if (window.scrollY > 60) {
+      nav.classList.add('solid');
+    } else {
+      nav.classList.remove('solid');
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
 
-	$WIN = $(window);
-	
-	var doc = document.documentElement;
-	doc.setAttribute('data-useragent', navigator.userAgent);
-	var ssPreloader = function() {
+  /* ── Active nav link highlight ─────────────────────────── */
+  var sections = document.querySelectorAll('section[id]');
+  var navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+  function updateActiveLink() {
+    var scrollY = window.scrollY + 100;
+    sections.forEach(function (sec) {
+      if (scrollY >= sec.offsetTop && scrollY < sec.offsetTop + sec.offsetHeight) {
+        navLinks.forEach(function (a) { a.style.color = ''; });
+        var active = document.querySelector('.nav-links a[href="#' + sec.id + '"]');
+        if (active && !active.classList.contains('nav-btn')) active.style.color = 'var(--gold)';
+      }
+    });
+  }
+  window.addEventListener('scroll', updateActiveLink, { passive: true });
 
-		$WIN.on('load', function() {	
-			$('html, body').animate({ scrollTop: 0 }, 'normal');
-	    	$("#loader").fadeOut("slow", function(){
-	        $("#preloader").delay(300).fadeOut("slow");
+  /* ── Mobile menu ───────────────────────────────────────── */
+  var burger   = document.getElementById('burger');
+  var mobMenu  = document.getElementById('mobMenu');
+  var mobClose = document.getElementById('mobClose');
 
-	      }); 
-	  	});
-	}; 
+  function openMob()  { mobMenu.classList.add('open');  burger.classList.add('open');  document.body.classList.add('locked'); }
+  function closeMob() { mobMenu.classList.remove('open'); burger.classList.remove('open'); document.body.classList.remove('locked'); }
 
-	var ssFitVids = function() {
-		$(".fluid-video-wrapper").fitVids();
-	}; 
+  burger.addEventListener('click', openMob);
+  mobClose.addEventListener('click', closeMob);
+  document.querySelectorAll('.mob-link').forEach(function (l) {
+    l.addEventListener('click', closeMob);
+  });
 
-	var ssMasonryFolio = function() {
+  /* ── Smooth scroll ─────────────────────────────────────── */
+  document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var target = document.querySelector(this.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      var navH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 78;
+      var top = target.getBoundingClientRect().top + window.scrollY - navH + 1;
+      window.scrollTo({ top: top, behavior: 'smooth' });
+    });
+  });
 
-		var containerBricks = $('.bricks-wrapper');
+  /* ── Scroll reveal (IntersectionObserver) ──────────────── */
+  var rvEls = document.querySelectorAll('.rv');
+  var rvObs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        rvObs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  rvEls.forEach(function (el) { rvObs.observe(el); });
 
-		containerBricks.imagesLoaded( function() {
-			containerBricks.masonry( {	
-			  	itemSelector: '.brick',
-			  	resize: true
-			});
-		});
-	};
+  /* ── Counter animation ─────────────────────────────────── */
+  var counters = document.querySelectorAll('.stat-n[data-target]');
+  var cntObs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      var el     = entry.target;
+      var end    = parseInt(el.dataset.target, 10);
+      var suffix = el.dataset.suffix || '';
+      var dur    = 1600;
+      var start  = performance.now();
 
-  	var ssFlexSlider = function() {
+      function tick(now) {
+        var pct  = Math.min((now - start) / dur, 1);
+        var ease = 1 - Math.pow(1 - pct, 3); // ease-out cubic
+        el.textContent = Math.floor(ease * end) + suffix;
+        if (pct < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+      cntObs.unobserve(el);
+    });
+  }, { threshold: 0.6 });
+  counters.forEach(function (el) { cntObs.observe(el); });
 
-  		$WIN.on('load', function() {
+  /* ── Hero parallax (subtle) ────────────────────────────── */
+  var heroBg = document.querySelector('.hero-bg');
+  if (heroBg) {
+    window.addEventListener('scroll', function () {
+      if (window.scrollY < window.innerHeight) {
+        heroBg.style.transform = 'scale(1.04) translateY(' + (window.scrollY * 0.18) + 'px)';
+      }
+    }, { passive: true });
+  }
 
-		   $('#testimonial-slider').flexslider({
-		   	namespace: "flex-",
-		      controlsContainer: "",
-		      animation: 'slide',
-		      controlNav: true,
-		      directionNav: false,
-		      smoothHeight: true,
-		      slideshowSpeed: 7000,
-		      animationSpeed: 600,
-		      randomize: false,
-		      touch: true,
-		   });
+  /* ── Order form → mailto ───────────────────────────────── */
+  var form = document.getElementById('orderForm');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var name  = (document.getElementById('f-name').value  || '').trim();
+      var phone = (document.getElementById('f-phone').value || '').trim();
+      var email = (document.getElementById('f-email').value || '').trim();
+      var msg   = (document.getElementById('f-msg').value   || '').trim();
 
-	   });
+      var subject = encodeURIComponent('Packaging Enquiry from ' + (name || 'Website'));
+      var body    = encodeURIComponent(
+        'Name: '  + name  + '\n' +
+        'Phone: ' + phone + '\n' +
+        'Email: ' + email + '\n\n' +
+        'Requirements:\n' + msg
+      );
+      window.open(
+        'https://mail.google.com/mail/?view=cm&fs=1&to=info%40paxpaarth.com&su=' + subject + '&body=' + body,
+        '_blank'
+      );
+    });
+  }
 
-  	};
-  	
-	var ssMenuOnScrolldown = function() {
-
-		var menuTrigger = $('#header-menu-trigger');
-
-		$WIN.on('scroll', function() {
-
-			if ($WIN.scrollTop() > 150) {				
-				menuTrigger.addClass('opaque');
-			}
-			else {				
-				menuTrigger.removeClass('opaque');
-			}
-
-		}); 
-	};
-
-   var ssOffCanvas = function() {
-
-	       var menuTrigger = $('#header-menu-trigger'),
-	       nav             = $('#menu-nav-wrap'),
-	       closeButton     = nav.find('.close-button'),
-	       siteBody        = $('body'),
-	       mainContents    = $('section, footer');
-
-		// open-close menu by clicking on the menu icon
-		menuTrigger.on('click', function(e){
-			e.preventDefault();
-			menuTrigger.toggleClass('is-clicked');
-			siteBody.toggleClass('menu-is-open');
-		});
-
-		// close menu by clicking the close button
-		closeButton.on('click', function(e){
-			e.preventDefault();
-			menuTrigger.trigger('click');	
-		});
-
-		// close menu clicking outside the menu itself
-		siteBody.on('click', function(e){		
-			if( !$(e.target).is('#menu-nav-wrap, #header-menu-trigger, #header-menu-trigger span') ) {
-				menuTrigger.removeClass('is-clicked');
-				siteBody.removeClass('menu-is-open');
-			}
-		});
-
-   };
-
-	var ssSmoothScroll = function() {
-
-		$('.smoothscroll').on('click', function (e) {
-			var target = this.hash,
-			$target    = $(target);
-	 	
-		 	e.preventDefault();
-		 	e.stopPropagation();	   	
-
-	    	$('html, body').stop().animate({
-	       	'scrollTop': $target.offset().top
-	      }, cfg.scrollDuration, 'swing').promise().done(function () {
-
-	      	// check if menu is open
-	      	if ($('body').hasClass('menu-is-open')) {
-					$('#header-menu-trigger').trigger('click');
-				}
-
-	      	window.location.hash = target;
-	      });
-	  	});
-
-	};
-
-	var ssPlaceholder = function() {
-		$('input, textarea, select').placeholder();  
-	};
-
-	var ssAnimations = function() {
-
-		if (!$("html").hasClass('no-cssanimations')) {
-			$('.animate-this').waypoint({
-				handler: function(direction) {
-
-					var defAnimationEfx = cfg.defAnimation;
-
-					if ( direction === 'down' && !$(this.element).hasClass('animated')) {
-						$(this.element).addClass('item-animate');
-
-						setTimeout(function() {
-							$('body .animate-this.item-animate').each(function(ctr) {
-								var el       = $(this),
-								animationEfx = el.data('animate') || null;	
-
-	                  	if (!animationEfx) {
-			                 	animationEfx = defAnimationEfx;	                 	
-			               }
-
-			              	setTimeout( function () {
-									el.addClass(animationEfx + ' animated');
-									el.removeClass('item-animate');
-								}, ctr * 30);
-
-							});								
-						}, 100);
-					}
-
-					// trigger once only
-	       		this.destroy(); 
-				}, 
-				offset: '95%'
-			}); 
-		}
-
-	};
-	
-
-  /* Intro Animation
-	* ------------------------------------------------------- */
-	var ssIntroAnimation = function() {
-
-		$WIN.on('load', function() {
-		
-	     	if (!$("html").hasClass('no-cssanimations')) {
-	     		setTimeout(function(){
-	    			$('.animate-intro').each(function(ctr) {
-						var el = $(this),
-	                   animationEfx = el.data('animate') || null;		                                      
-
-	               if (!animationEfx) {
-	                 	animationEfx = cfg.defAnimation;	                 	
-	               }
-
-	              	setTimeout( function () {
-							el.addClass(animationEfx + ' animated');
-						}, ctr * 300);
-					});						
-				}, 100);
-	     	} 
-		}); 
-
-	};
-
-  /* AjaxChimp
-	* ------------------------------------------------------ */
-	var ssAjaxChimp = function() {
-
-		$('#mc-form').ajaxChimp({
-			language: 'es',
-		   url: cfg.mailChimpURL
-		});
-
-		// Mailchimp translation
-		//
-		//  Defaults:
-		//	 'submit': 'Submitting...',
-		//  0: 'We have sent you a confirmation email',
-		//  1: 'Please enter a value',
-		//  2: 'An email address must contain a single @',
-		//  3: 'The domain portion of the email address is invalid (the portion after the @: )',
-		//  4: 'The username portion of the email address is invalid (the portion before the @: )',
-		//  5: 'This email address looks fake or invalid. Please enter a real email address'
-
-		$.ajaxChimp.translations.es = {
-		  'submit': 'Submitting...',
-		  0: '<i class="fa fa-check"></i> We have sent you a confirmation email',
-		  1: '<i class="fa fa-warning"></i> You must enter a valid e-mail address.',
-		  2: '<i class="fa fa-warning"></i> E-mail address is not valid.',
-		  3: '<i class="fa fa-warning"></i> E-mail address is not valid.',
-		  4: '<i class="fa fa-warning"></i> E-mail address is not valid.',
-		  5: '<i class="fa fa-warning"></i> E-mail address is not valid.'
-		} 
-
-	};
-
-	(function ssInit() {
-
-		ssPreloader();
-		ssFitVids();
-		ssMasonryFolio();
-		ssFlexSlider();
-		ssMenuOnScrolldown();
-		ssOffCanvas();
-		ssSmoothScroll();
-		ssPlaceholder();
-		ssAnimations();
-		ssIntroAnimation();		
-		ssAjaxChimp();
-	})();
- 
-
-})(jQuery);
+})();
